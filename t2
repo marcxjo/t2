@@ -32,31 +32,38 @@ then
 	exit 2
 fi
 
-# Config - Change these to match your own environment
+# Config - Change these to match your own environment ##########################
+
+# You guessed it.
 screen_width=1920
 
-panel_height=24                           # If and only if you have
-                                          # a bottom panel.
+# If and only if you have a *bottom* panel.
+panel_height=24
 
-screen_height=$(( 1080 - $panel_height )) # This is a stupid way to format
-                                          # it, but it's for simplicity,
-                                          # particularly as I plan to
-                                          # later grab yres via xrandr.
+# This is a stupid way to format this, but it's also in prep to re-write
+# it to be grabbed by xrandr.
+screen_height=$(( 1080 - $panel_height ))
 
-# Tiling preferences
-divs=${1:0:1}          # [0-9] Number of horizontal tile slices
 
-x0=$(( ${1:1:1} - 1 )) # [0-9] First horizontal slice to occupy
+# Tiling preferences ###########################################################
 
-x1=$(( ${1:2:1} - 1 )) # [0-9] Last horizontal slice to occupy
-                       # (Note that the script will fail out if $x0 > $x1.
-                       # $x0 = $x1 is acceptable and gives a single-slice-width
-                       # window.
+# [0-9] Number of horizontal tile slices
+divs=${1:0:1}
 
-yp=${1:3:1}            # [fhl] Vertical placement
-                       # l=lower half-screen
-                       # h=higher half-screen
-                       # f=fullscreen
+# [0-9] First horizontal slice to occupy
+x0=$(( ${1:1:1} - 1 ))
+
+# [0-9] Last horizontal slice to occupy
+# (Note that the script will fail out if $x0 > $x1.
+# $x0 = $x1 is acceptable and gives a single-slice-width
+# window.
+x1=$(( ${1:2:1} - 1 ))
+
+# [fhl] Vertical placement
+# l=lower half-screen
+# h=higher half-screen
+# f=fullscreen
+yp=${1:3:1}
 
 margin=${margin:-48}
 
@@ -65,18 +72,21 @@ then
 	margin="$2"
 fi
 
+# Window Placement #############################################################
+
 # Basic (/single-)tile width.
 t_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs + 1 )) * $margin )) / $divs ))
 
-c=$(( $x0 * $(( $t_width + $margin )) + $margin )) # Horinzontal placement of
-                                                   # the left edge.
+# Horizontal placement of the left edge.
+c=$(( $x0 * $(( $t_width + $margin )) + $margin ))
 
 width=$(( $(( $x1 - $x0 + 1 )) * $t_width +  $(( $(( $x1 - $x0 )) * $margin )) ))
 
 case "$yp" in
 	"h")
 		height=$(( $(( $screen_height - $(( 3 * $margin )) )) / 2 ))
-		d=$margin # Vertical placement of the upper edge.
+                # Vertical placement of the upper edge.
+		d=$margin
 		;;
 	"f")
 		height=$(( $screen_height - $(( 2 * $margin )) ))
