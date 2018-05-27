@@ -1,0 +1,59 @@
+#!/bin/bash
+
+divs=1
+x0=1
+x1=1
+
+limit=9
+
+get_sets () {
+      echo "${divs}${x0}${x1}f" >> /tmp/tiles
+      echo "${divs}${x0}${x1}h" >> /tmp/tiles
+      echo "${divs}${x0}${x1}l" >> /tmp/tiles
+}
+
+loop_x0 () {
+  while [[ $x0 -le $x1 ]]
+  do
+    get_sets
+    x0=$(($x0+1))
+  done
+}
+
+loop_x1 () {
+  while [[ $x1 -le $divs ]]
+  do
+    x0=1
+    loop_x0
+    x1=$(($x1+1))
+  done
+}
+
+loop_divs () {
+  while [[ $divs -lt 10 ]]
+  do
+    x1=1
+    loop_x1
+    divs=$(($divs+1))
+  done
+}
+
+function gen_placements () {
+  loop_divs
+}
+
+function readback () {
+  cat /tmp/tiles | sort | uniq
+}
+
+if [ ! -f "/tmp/tiles" ]
+then
+  gen_placements
+fi
+
+PLACEMENT=$( readback  | rofi -lines 1 -threads 0 -columns 1 -width 20 location 0 -dmenu -p "Window placement:")
+
+if [ -n "${PLACEMENT}" ]
+then
+    t2 "${PLACEMENT}"
+fi

@@ -1,0 +1,35 @@
+#!/bin/sh
+# tile your windows quickly with dmenu
+
+. ~/.local/share/themes/bspwm/colors.sh
+
+# l10n support
+case $LANG in
+    eo_* ) TEXT="t2:" ;; # Russian
+    en_* ) TEXT="t2:" ;; # English
+esac
+
+SB="-sb ${color2}"
+SF="-sf ${color10}"
+NB="-nb ${color0}"
+NF="-nf ${color15}"
+FN="-fn Terminus:style=bold:size=10"
+OPTIONS="-b $FN $NB $NF $SB $SF -p $TEXT -i"
+#OPTIONS="$NB $NF $SB $SF -p $TEXT -i"
+
+DMENU="dmenu -i $OPTIONS"
+TILES="$HOME/.cache/dmenu_tile_positions"
+
+RUN=`(cat "$TILES") | $DMENU $@` &&
+
+case $RUN in
+    [0-9][0-9][0-9][fhl])
+    exec t2 $RUN
+    ;;
+  *) 
+    echo "Not quite"
+    exit 3
+    ;;
+esac
+
+exit 0
