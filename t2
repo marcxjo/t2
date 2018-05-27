@@ -5,13 +5,13 @@
 # Special thanks to grocid for gtile, on which this project is heavily based.
 # https://github.com/grocid/gtile
 
-# Usage: t2 PLACEMENT [margin]
+# Usage: t2 PLACEMENT [tile_gap]
 
 # The script takes one mandatory argument: a 4-character string that defines
 # the placement of the window. The substrings are explained in the code comments
 # that accompany each variable.
 
-# The optional second argument defines the padding margin between
+# The optional second argument defines the padding tile_gap between
 # windows. The default value is wide but maintains decent readability on
 # large screens.
 
@@ -26,23 +26,23 @@
 # can easily be  accomplished for the desktop/root-like windows of other
 # environments as well.
 
-if [ "$(xdotool getactivewindow getwindowname)" = "x-caja-desktop" ]
+_AWIN=$(xdotool getactivewindow getwindowname)
+
+if [[ "$_AWIN" = "x-caja-desktop" || "$_AWIN" = "Desktop" ]]
 then
-	echo "Yeah, not movin' that one."
-	exit 2
+  echo "Yeah, not movin' that one."
+  exit 2
 fi
 
 # Config - Change these to match your own environment ##########################
 
+. ${HOME}/.config/t2/layout
+
 # You guessed it.
-screen_width=1920
+screen_width=$(( $mon_width - $left_margin - $right_margin ))
 
-# If and only if you have a *bottom* panel.
-panel_height=24
-
-# This is a stupid way to format this, but it's also in prep to re-write
-# it to be grabbed by xrandr.
-screen_height=$(( 1080 - $panel_height ))
+screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
+$top_margin - $bottom_margin ))
 
 
 # Tiling preferences ###########################################################
@@ -63,46 +63,46 @@ x1=$(( ${1:2:1} - 1 ))
 # l=lower half-screen
 # h=higher half-screen
 # f=fullscreen
-yp=${1:3:1}
-
-margin=${margin:-48}
+case "${1:3:1}" in
+  h)
+    y0=0
+    y1=0
+    ;;
+  l)
+    y0=1
+    y1=1
+    ;;
+  f)
+    y0=0
+    y1=1
+    ;;
+esac
 
 if [ ! -z "$2" ]
 then
-	margin="$2"
+  tile_gap="$2"
 fi
 
 # Window Placement #############################################################
 
 # Basic (/single-)tile width.
-t_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs + 1 )) * $margin )) / $divs ))
+tile_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs - 1 )) * $tile_gap )) / $divs ))
 
 # Horizontal placement of the left edge.
-c=$(( $x0 * $(( $t_width + $margin )) + $margin ))
+c=$(( $x0 * $(( $tile_width + $tile_gap )) ))
+width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
 
-width=$(( $(( $x1 - $x0 + 1 )) * $t_width +  $(( $(( $x1 - $x0 )) * $margin )) ))
+# Basic (/single-)tile height.
+tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 
-case "$yp" in
-	"h")
-		height=$(( $(( $screen_height - $(( 3 * $margin )) )) / 2 ))
-                # Vertical placement of the upper edge.
-		d=$margin
-		;;
-	"f")
-		height=$(( $screen_height - $(( 2 * $margin )) ))
-		d=$margin
-		;;
-	"l")
-		height=$(( $(( $screen_height - $(( 3 * $margin )) )) / 2 ))
-		d=$(( $height + 2 * $margin ))
-		;;
-	*)
-		echo "Usage: $(basename $0) [0-9][0-9][0-9][flh]"
-		exit 3
-		;;
-esac
+#Vertical placement of the upper edge.
+d=$(( $y0 * $(( $tile_height + $tile_gap )) ))
+height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
-xdotool getactivewindow windowsize $width $height windowmove $c $d
+echo $width $height $c $d
+
+xdotool getactivewindow windowsize $width $height windowmove \
+$(( $c + $left_margin )) $(( $d + $top_panel + $top_margin ))
 
 unset width height c d
 
