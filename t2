@@ -1,33 +1,13 @@
 #!/bin/sh
 
 # t2 - PLACEMENT DAY
-
-# Special thanks to grocid for gtile, on which this project is heavily based.
-# https://github.com/grocid/gtile
-
+#
 # Usage: t2 PLACEMENT [tile_gap]
-
-# The script takes one mandatory argument: a 4-character string that defines
-# the placement of the window. The substrings are explained in the code comments
-# that accompany each variable.
-
-# The optional second argument defines the padding tile_gap between
-# windows. The default value is wide but maintains decent readability on
-# large screens.
-
-# The script is generally pretty easy to extend for more general cases,
-# such as using more than 2 non-fullscreen vertical slices to tile or using
-# hexadecimal letters to allow for more than 9 horizontal slices.
-# I may eventually write them in myself if demand is there, but note that
-# these exceed my own use case, so motivation is weak at the moment.
-
-# Since it was written especially with MATE in mind, it has a built-in
-# safeguard to prevent accidentally tiling the Caja desktop window, but this
-# can easily be  accomplished for the desktop/root-like windows of other
-# environments as well.
 
 _AWIN=$(xdotool getactivewindow getwindowname)
 
+# Fallback to make sure we don't accidentally tile the desktop window.
+# Supports MATE and Xfce so far.
 if [[ "$_AWIN" = "x-caja-desktop" || "$_AWIN" = "Desktop" ]]
 then
   echo "Yeah, not movin' that one."
@@ -44,25 +24,27 @@ screen_width=$(( $mon_width - $left_margin - $right_margin ))
 screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
 $top_margin - $bottom_margin ))
 
-
 # Tiling preferences ###########################################################
 
-# [0-9] Number of horizontal tile slices
+# [1-9] Number of horizontal tile slices
 divs=${1:0:1}
 
-# [0-9] First horizontal slice to occupy
+# [1-9] First horizontal slice to occupy
 x0=$(( ${1:1:1} - 1 ))
 
-# [0-9] Last horizontal slice to occupy
+# [1-9] Last horizontal slice to occupy
 # (Note that the script will fail out if $x0 > $x1.
 # $x0 = $x1 is acceptable and gives a single-slice-width
 # window.
 x1=$(( ${1:2:1} - 1 ))
 
 # [fhl] Vertical placement
-# l=lower half-screen
 # h=higher half-screen
+# l=lower half-screen
 # f=fullscreen
+# Note that fullscreen-tiled is _not_ the same thing
+# as fullscreening a window according to your tile
+# manager.
 case "${1:3:1}" in
   h)
     y0=0
