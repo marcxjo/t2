@@ -14,7 +14,7 @@ then
   exit 2
 fi
 
-# Config - Change these to match your own environment ##########################
+# Config - Change these to match your own environment #########################
 
 . ${HOME}/.config/t2/layout
 
@@ -24,7 +24,7 @@ screen_width=$(( $mon_width - $left_margin - $right_margin ))
 screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
 $top_margin - $bottom_margin ))
 
-# Tiling preferences ###########################################################
+# Tiling preferences ##########################################################
 
 # [1-9] Number of horizontal tile slices
 divs=${1:0:1}
@@ -65,10 +65,11 @@ then
   tile_gap="$2"
 fi
 
-# Window Placement #############################################################
+# Window Placement ############################################################
 
 # Basic (/single-)tile width.
-tile_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs - 1 )) * $tile_gap )) / $divs ))
+tile_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs - 1 )) * \
+$tile_gap )) / $divs ))
 
 # Horizontal placement of the left edge.
 c=$(( $x0 * $(( $tile_width + $tile_gap )) ))
