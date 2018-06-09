@@ -51,9 +51,9 @@ then
   gen_placements
 fi
 
-PLACEMENT=$( readback  | rofi -lines 1 -threads 0 -columns 1 -width 20 location 0 -dmenu -p "Window placement:")
+PLACEMENT=$(readback  | rofi -lines 1 -threads 0 -columns 1 -width 20 location 0 -dmenu -p "Window placement:")
 
-if [ -n "${PLACEMENT}" ]
+if [[ -n ${PLACEMENT+x} ]]
 then
-    t2 "${PLACEMENT}"
+    t2 "$@" "${PLACEMENT}"
 fi
