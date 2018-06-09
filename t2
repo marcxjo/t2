@@ -137,7 +137,8 @@ height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 echo $width $height $c $d
 
 xdotool getactivewindow windowsize $width $height windowmove \
-$(( $c + $left_margin )) $(( $d + $top_panel + $top_margin ))
+$(( $c + $left_margin + $horizontal_offset )) \
+$(( $d + $top_panel + $top_margin + $vertical_offset ))
 
 unset width height c d
 
