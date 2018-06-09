@@ -36,7 +36,24 @@ fi
 
 # Config - Change these to match your own environment #########################
 
-. ${HOME}/.config/t2/layout
+while getopts :c: o; do
+  case "${o}" in
+    c)
+      if [[ -e "${CONFIG_DIR}/layout-${OPTARG}" ]]; then
+        CONFIG_FILE="${CONFIG_DIR}/layout-${OPTARG}"
+        . $CONFIG_FILE
+      else
+	echo "Unable to locate ${CONFIG_DIR}/layout-${OPTARG}."
+        exit 3
+      fi
+      ;;
+  esac
+done
+
+if [[ -z "${CONFIG_FILE+x}" ]]; then
+  CONFIG_FILE="${CONFIG_DIR}/layout"
+  . $CONFIG_FILE
+fi
 
 # You guessed it.
 screen_width=$(( $mon_width - $left_margin - $right_margin ))
