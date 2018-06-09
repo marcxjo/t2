@@ -49,7 +49,7 @@ fi
 
 # Config - Change these to match your own environment #########################
 
-while getopts :c: o; do
+while getopts :c:h o; do
   case "${o}" in
     c)
       if [[ -e "${CONFIG_DIR}/layout-${OPTARG}" ]]; then
@@ -59,6 +59,10 @@ while getopts :c: o; do
 	echo "Unable to locate ${CONFIG_DIR}/layout-${OPTARG}."
         exit 3
       fi
+      ;;
+    h)
+      usage
+      exit 0
       ;;
   esac
 done
