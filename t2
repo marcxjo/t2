@@ -6,21 +6,34 @@
 
 # Preliminaries ###############################################################
 
+CONFIG_DIR="${HOME}/.config/t2"
+
 usage () {
-  cat EOF<-Usage: ${0##*/} LAYOUT
+  cat <<-EOF
+	Usage:
+	  ${0##*/} [-c CONFIG_FILE_SUFFIX] LAYOUT
+
+	Options:
+
+	-c CONFIG_FILE_SUFFIX
+	  Use an alternate config file to place the active window
+	  "-c 2" sources \${HOME}/.config/t2/layout-2
 
 	LAYOUT
-		A 4-char argument formatted [TILES][X_0][X_1][Y_SPAN]
+	  A 4-char argument formatted [TILES][X_0][X_1][Y_SPAN]
 
-		TILES
-			[0-9] slice screen into TILES vertical sections
-		X_0
-			[0-9] Window's left edge is left boundary of tile X_0
-		X_1
-			[0-9] Window's right edge is right boundary of tile X_1
-		Y_SPAN
-			[fhl] Place across full, upper half, or lower half of
-			the tile space
+	  TILES
+	    [0-9] slice screen into TILES vertical sections
+
+	  X_0
+	    [0-9] Window's left edge is left boundary of tile X_0
+
+	  X_1
+	    [0-9] Window's right edge is right boundary of tile X_1
+
+	  Y_SPAN
+	    [fhl] Place across full, upper half, or lower half of
+	    the tile space
 EOF
 }
 
