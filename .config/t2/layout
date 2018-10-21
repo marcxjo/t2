@@ -9,3 +9,6 @@ top_panel_height=30
 bottom_panel_height=0
 top_margin=$tile_gap
 bottom_margin=$tile_gap
+
+horizontal_offset=0
+vertical_offset=0
