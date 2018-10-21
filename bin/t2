@@ -52,13 +52,12 @@ fi
 while getopts :c:h o; do
   case "${o}" in
     c)
-      if [[ -e "${CONFIG_DIR}/layout-${OPTARG}" ]]; then
-        CONFIG_FILE="${CONFIG_DIR}/layout-${OPTARG}"
-        . $CONFIG_FILE
-      else
+      if [[ ! -e "${CONFIG_DIR}/layout-${OPTARG}" ]]; then
 	echo "Unable to locate ${CONFIG_DIR}/layout-${OPTARG}."
         exit 3
       fi
+      CONFIG_FILE="${CONFIG_DIR}/layout-${OPTARG}"
+      . $CONFIG_FILE
       ;;
     h)
       usage
