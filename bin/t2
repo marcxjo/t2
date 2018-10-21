@@ -138,10 +138,16 @@ tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 d=$(( $y0 * $(( $tile_height + $tile_gap )) ))
 height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
-echo $width $height $c $d
+#echo $width $height $c $d
+
+if [[ "$_AWIN" =~ ^.*\ \-\ mpv$ ]]
+then
+  c=$(( $c + 2 ))
+  d=$(( $d + 10 ))
+fi
 
 xdotool getactivewindow windowsize $width $height windowmove \
-$(( $c + $left_margin + $horizontal_offset )) \
+$(( $c + $left_panel + $left_margin + $horizontal_offset )) \
 $(( $d + $top_panel + $top_margin + $vertical_offset ))
 
 unset width height c d
