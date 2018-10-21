@@ -6,16 +6,16 @@
 
 # Preliminaries ###############################################################
 
-CONFIG_DIR="${HOME}/.config/t2"
+T2_CONFIG_DIR="${HOME}/.config/t2"
 
 usage () {
   cat <<-EOF
 	Usage:
-	  ${0##*/} [-c CONFIG_FILE_SUFFIX] LAYOUT
+	  ${0##*/} [-c T2_CONFIG_FILE_SUFFIX] LAYOUT
 
 	Options:
 
-	-c CONFIG_FILE_SUFFIX
+	-c T2_CONFIG_FILE_SUFFIX
 	  Use an alternate config file to place the active window
 	  "-c 2" sources \${HOME}/.config/t2/layout-2
 
@@ -37,11 +37,11 @@ usage () {
 EOF
 }
 
-_AWIN=$(xdotool getactivewindow getwindowname)
+ACTIVE_WINDOW=$(xdotool getactivewindow getwindowname)
 
 # Fallback to make sure we don't accidentally tile the desktop window.
 # Supports MATE and Xfce so far.
-if [[ "$_AWIN" = "x-caja-desktop" || "$_AWIN" = "Desktop" ]]
+if [[ "$ACTIVE_WINDOW" = "x-caja-desktop" || "$ACTIVE_WINDOW" = "Desktop" ]]
 then
   echo "Yeah, not movin' that one."
   exit 2
@@ -52,12 +52,12 @@ fi
 while getopts :c:h o; do
   case "${o}" in
     c)
-      if [[ ! -e "${CONFIG_DIR}/layout-${OPTARG}" ]]; then
-	echo "Unable to locate ${CONFIG_DIR}/layout-${OPTARG}."
+      if [[ ! -e "${T2_CONFIG_DIR}/layout-${OPTARG}" ]]; then
+	echo "Unable to locate ${T2_CONFIG_DIR}/layout-${OPTARG}."
         exit 3
       fi
-      CONFIG_FILE="${CONFIG_DIR}/layout-${OPTARG}"
-      . $CONFIG_FILE
+      T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout-${OPTARG}"
+      . $T2_CONFIG_FILE
       shift 2
       ;;
     h)
@@ -67,9 +67,9 @@ while getopts :c:h o; do
   esac
 done
 
-if [[ -z "${CONFIG_FILE+x}" ]]; then
-  CONFIG_FILE="${CONFIG_DIR}/layout"
-  . $CONFIG_FILE
+if [[ -z "${T2_CONFIG_FILE+x}" ]]; then
+  T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout"
+  . $T2_CONFIG_FILE
 fi
 
 # You guessed it.
@@ -81,7 +81,7 @@ $top_margin - $bottom_margin ))
 # Tiling preferences ##########################################################
 
 # [1-9] Number of horizontal tile slices
-divs=${1:0:1}
+slices=${1:0:1}
 
 # [1-9] First horizontal slice to occupy
 x0=$(( ${1:1:1} - 1 ))
@@ -122,31 +122,31 @@ fi
 # Window Placement ############################################################
 
 # Basic (/single-)tile width.
-tile_width=$(( $(( $screen_width / $divs )) - $(( $(( $divs - 1 )) * \
-$tile_gap )) / $divs ))
+tile_width=$(( $(( $screen_width / $slices )) - $(( $(( $slices - 1 )) * \
+$tile_gap )) / $slices ))
 
 # Horizontal placement of the left edge.
-c=$(( $x0 * $(( $tile_width + $tile_gap )) ))
-width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
+left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) ))
+window_width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
 
 # Basic (/single-)tile height.
 tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 
 #Vertical placement of the upper edge.
-d=$(( $y0 * $(( $tile_height + $tile_gap )) ))
-height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
+upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) ))
+window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
 #echo $width $height $c $d
 
-if [[ "$_AWIN" =~ ^.*\ \-\ mpv$ ]]
+if [[ "$ACTIVE_WINDOW" =~ ^.*\ \-\ mpv$ ]]
 then
-  c=$(( $c + 2 ))
-  d=$(( $d + 10 ))
+ left_edge=$(( $c + 2 ))
+ upper_edge=$(( $d + 10 ))
 fi
 
-xdotool getactivewindow windowsize $width $height windowmove \
-$(( $c + $left_panel + $left_margin + $horizontal_offset )) \
-$(( $d + $top_panel + $top_margin + $vertical_offset ))
+xdotool getactivewindow windowsize $window_width $window_height windowmove \
+$(( $left_edge + $left_panel + $left_margin + $horizontal_offset )) \
+$(( $upper_edge + $top_panel + $top_margin + $vertical_offset ))
 
 unset width height c d
 
