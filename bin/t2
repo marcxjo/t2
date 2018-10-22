@@ -38,6 +38,10 @@ usage () {
 EOF
 }
 
+fix_placement() {
+  fix_line=( $(grep -E "^${1}" $T2_CONFIG_DIR/fixes) )
+}
+
 ACTIVE_WINDOW=$(xdotool getactivewindow getwindowname)
 
 # Fallback to make sure we don't accidentally tile the desktop window.
@@ -50,7 +54,7 @@ fi
 
 # Config - Change these to match your own environment #########################
 
-while getopts :c:dh o; do
+while getopts :c:dm:h o; do
   case "${o}" in
     c)
       if [[ ! -e "${T2_CONFIG_DIR}/layout-${OPTARG}" ]]; then
@@ -62,6 +66,9 @@ while getopts :c:dh o; do
       ;;
     d)
       T2_DEBUG_MODE="yes"
+      ;;
+    m)
+      fix_placement ${OPTARG}
       ;;
     h)
       usage
@@ -141,10 +148,10 @@ tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) ))
 window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
-if [[ "$ACTIVE_WINDOW" =~ ^.*\ \-\ mpv$ ]]
+if [[ ! ${#fix_line[@]} -eq 0 ]]
 then
- left_edge=$(( $left_edge + 2 ))
- upper_edge=$(( $upper_edge + 10 ))
+  left_edge=$(( left_edge + ${fix_line[1]} ))
+  upper_edge=$(( upper_edge + ${fix_line[2]} ))
 fi
 
 horizontal_placement=$(( $left_edge + $left_panel + $left_margin + $horizontal_offset ))
