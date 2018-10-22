@@ -7,6 +7,7 @@
 # Preliminaries ###############################################################
 
 T2_CONFIG_DIR="${HOME}/.config/t2"
+T2_DEBUG_MODE="no"
 
 usage () {
   cat <<-EOF
@@ -49,7 +50,7 @@ fi
 
 # Config - Change these to match your own environment #########################
 
-while getopts :c:h o; do
+while getopts :c:dh o; do
   case "${o}" in
     c)
       if [[ ! -e "${T2_CONFIG_DIR}/layout-${OPTARG}" ]]; then
@@ -58,7 +59,9 @@ while getopts :c:h o; do
       fi
       T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout-${OPTARG}"
       . $T2_CONFIG_FILE
-      shift 2
+      ;;
+    d)
+      T2_DEBUG_MODE="yes"
       ;;
     h)
       usage
@@ -66,6 +69,8 @@ while getopts :c:h o; do
       ;;
   esac
 done
+
+shift $((OPTIND - 1))
 
 if [[ -z "${T2_CONFIG_FILE+x}" ]]; then
   T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout"
@@ -136,18 +141,24 @@ tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) ))
 window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
-#echo $width $height $c $d
-
 if [[ "$ACTIVE_WINDOW" =~ ^.*\ \-\ mpv$ ]]
 then
- left_edge=$(( $c + 2 ))
- upper_edge=$(( $d + 10 ))
+ left_edge=$(( $left_edge + 2 ))
+ upper_edge=$(( $upper_edge + 10 ))
+fi
+
+horizontal_placement=$(( $left_edge + $left_panel + $left_margin + $horizontal_offset ))
+vertical_placement=$(( $upper_edge + $top_panel + $top_margin + $vertical_offset ))
+
+if [[ "$T2_DEBUG_MODE" = "yes" ]]
+then
+  echo "$window_width $window_height $horizontal_placement $vertical_placement"
+  exit 0
 fi
 
 xdotool getactivewindow windowsize $window_width $window_height windowmove \
-$(( $left_edge + $left_panel + $left_margin + $horizontal_offset )) \
-$(( $upper_edge + $top_panel + $top_margin + $vertical_offset ))
+$horizontal_placement $vertical_placement
 
-unset width height c d
+unset width height horizontal_placement vertical_placement
 
 exit 0
