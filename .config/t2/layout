@@ -1,14 +1,22 @@
 tile_gap=48
 
+# Monitor stats
 mon_width=1920
-left_margin=$tile_gap
-right_margin=$left_margin
-
 mon_height=1080
-top_panel_height=30
-bottom_panel_height=0
-top_margin=$tile_gap
-bottom_margin=$tile_gap
 
+# Panels
+top_panel_height=30
+bottom_panel_height=48
+left_panel_width=0
+right_panel_width=0
+
+# Margins (for user-defined screen padding)
+top_margin=16
+bottom_margin=48
+left_margin=$tile_gap
+right_margin=tile_gap
+
+# Offsets (a workaround
+# for placement correction)
 horizontal_offset=0
 vertical_offset=0
