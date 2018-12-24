@@ -9,7 +9,9 @@
 T2_CONFIG_DIR="${HOME}/.config/t2"
 T2_DEBUG_MODE="no"
 
-usage () {
+declare -a fix_line
+
+usage() {
   cat <<-EOF
 	Usage:
 	  ${0##*/} [-c T2_CONFIG_FILE_SUFFIX] LAYOUT
@@ -39,7 +41,7 @@ EOF
 }
 
 fix_placement() {
-  fix_line=( $(grep -E "^${1}" $T2_CONFIG_DIR/fixes) )
+   grep -E "^${1}" $T2_CONFIG_DIR/fixes
 }
 
 ACTIVE_WINDOW=$(xdotool getactivewindow getwindowname)
@@ -68,7 +70,7 @@ while getopts :c:dm:h o; do
       T2_DEBUG_MODE="yes"
       ;;
     m)
-      fix_placement ${OPTARG}
+      export fix_line=( $(fix_placement "${OPTARG}") )
       ;;
     h)
       usage
@@ -85,7 +87,8 @@ if [[ -z "${T2_CONFIG_FILE+x}" ]]; then
 fi
 
 # You guessed it.
-screen_width=$(( $mon_width - $left_margin - $right_margin ))
+screen_width=$(( $mon_width - $left_panel_width - $right_panel_width - \
+$left_margin - $right_margin ))
 
 screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
 $top_margin - $bottom_margin ))
@@ -93,16 +96,16 @@ $top_margin - $bottom_margin ))
 # Tiling preferences ##########################################################
 
 # [1-9] Number of horizontal tile slices
-slices=${1:0:1}
+slices=$(printf "%d" "0x${1:0:1}")
 
 # [1-9] First horizontal slice to occupy
-x0=$(( ${1:1:1} - 1 ))
+x0=$(( $(printf "%d" "0x${1:1:1}") - 1 ))
 
 # [1-9] Last horizontal slice to occupy
 # (Note that the script will fail out if $x0 > $x1.
 # $x0 = $x1 is acceptable and gives a single-slice-width
 # window.
-x1=$(( ${1:2:1} - 1 ))
+x1=$(( $(printf "%d" "0x${1:2:1}") - 1 ))
 
 # [fhl] Vertical placement
 # h=higher half-screen
@@ -148,14 +151,14 @@ tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) ))
 window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
-if [[ ! ${#fix_line[@]} -eq 0 ]]
+if [[ ${#fix_line[@]} -ne 0 ]]
 then
   left_edge=$(( left_edge + ${fix_line[1]} ))
   upper_edge=$(( upper_edge + ${fix_line[2]} ))
 fi
 
-horizontal_placement=$(( $left_edge + $left_panel + $left_margin + $horizontal_offset ))
-vertical_placement=$(( $upper_edge + $top_panel + $top_margin + $vertical_offset ))
+horizontal_placement=$(( $left_edge + $left_panel_width + $left_margin + $horizontal_offset ))
+vertical_placement=$(( $upper_edge + $top_panel_height + $top_margin + $vertical_offset ))
 
 if [[ "$T2_DEBUG_MODE" = "yes" ]]
 then
@@ -166,6 +169,6 @@ fi
 xdotool getactivewindow windowsize $window_width $window_height windowmove \
 $horizontal_placement $vertical_placement
 
-unset width height horizontal_placement vertical_placement
+unset width height horizontal_placement vertical_placement fix_line
 
 exit 0
