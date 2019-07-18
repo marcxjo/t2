@@ -5,8 +5,8 @@ mon_width=1920
 mon_height=1080
 
 # Panels
-top_panel_height=30
-bottom_panel_height=48
+top_panel_height=24
+bottom_panel_height=24
 left_panel_width=0
 right_panel_width=0
 
@@ -14,7 +14,7 @@ right_panel_width=0
 top_margin=16
 bottom_margin=48
 left_margin=$tile_gap
-right_margin=tile_gap
+right_margin=$tile_gap
 
 # Offsets (a workaround
 # for placement correction)
