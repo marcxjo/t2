@@ -2,14 +2,13 @@
 
 # t2 - PLACEMENT DAY
 #
-# Usage: t2 PLACEMENT [tile_gap]
+# A simple tiling script for X11
 
-# Preliminaries ###############################################################
+# Preliminaries ########################################################
 
 T2_CONFIG_DIR="${HOME}/.config/t2"
+T2_TMP_DIR="/tmp/t2-${USER}"
 T2_DEBUG_MODE="no"
-
-declare -a fix_line
 
 usage() {
   cat <<-EOF
@@ -20,57 +19,83 @@ usage() {
 
 	-c T2_CONFIG_FILE_SUFFIX
 	  Use an alternate config file to place the active window
-	  "-c 2" sources \${HOME}/.config/t2/layout-2
+	  Passing "-c foo" sources \${HOME}/.config/t2/layouts/foo
 
 	LAYOUT
 	  A 4-char argument formatted [TILES][X_0][X_1][Y_SPAN]
+          The first three characters are positive hexadecimal integers
 
 	  TILES
-	    [0-9] slice screen into TILES vertical sections
+	    [0-f] slice screen into TILES vertical sections
 
 	  X_0
-	    [0-9] Window's left edge is left boundary of tile X_0
+	    [0-f] Window's left edge is left boundary of tile X_0
+            Must be less than or equal to TILES
 
 	  X_1
-	    [0-9] Window's right edge is right boundary of tile X_1
+	    [0-f] Window's right edge is right boundary of tile X_1
+            Must be greater than or equal to X_0
 
 	  Y_SPAN
 	    [fhl] Place across full, upper half, or lower half of
-	    the tile space
+	    the tile-able space
 EOF
 }
 
 fix_placement() {
-   grep -E "^${1}" $T2_CONFIG_DIR/fixes
+   . "${T2_TMP_DIR}/fixes/${1}"
 }
+
+init() {
+  cp -nr ${T2_CONFIG_DIR} ${T2_TMP_DIR}
+}
+
+# Initial checks #######################################################
+
+if [[ ! -e ${T2_TMP_DIR} ]]; then
+  init
+fi
+
+. ${T2_TMP_DIR}/layouts/default
 
 ACTIVE_WINDOW=$(xdotool getactivewindow getwindowname)
 
-# Fallback to make sure we don't accidentally tile the desktop window.
-# Supports MATE and Xfce so far.
-if [[ "$ACTIVE_WINDOW" = "x-caja-desktop" || "$ACTIVE_WINDOW" = "Desktop" ]]
+if [[ $(grep "$ACTIVE_WINDOW" ${T2_TMP_DIR}/blacklist) ]]
 then
-  echo "Yeah, not movin' that one."
+  cat <<-ERR_MSG
+	Sorry, this window is blacklisted from tiling. Most likely this
+	means your active window is actually a root or desktop window.
+	Please select an application window or dialog before attempting
+	to tile.
+	ERR_MSG
   exit 2
 fi
 
-# Config - Change these to match your own environment #########################
+# Options parsing ######################################################
 
-while getopts :c:dm:h o; do
+ACTIVE_WINDOW_ID=$(xdotool getactivewindow)
+
+for wm_class in $(find ${T2_TMP_DIR}/fixes -type f); do
+  if [[ $(xprop -id $ACTIVE_WINDOW_ID WM_CLASS | grep -c "$wm_class") -gt 0 ]]; then
+    fix_placement $wm_class
+    break
+  fi
+done
+
+while getopts :ic:dm:h o; do
   case "${o}" in
+    i)
+      init
+      ;;
     c)
-      if [[ ! -e "${T2_CONFIG_DIR}/layout-${OPTARG}" ]]; then
-	echo "Unable to locate ${T2_CONFIG_DIR}/layout-${OPTARG}."
-        exit 3
-      fi
-      T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout-${OPTARG}"
-      . $T2_CONFIG_FILE
+      T2_CONFIG_FILE="${T2_TMP_DIR}/layouts/${OPTARG}"
+      . $T2_CONFIG_FILE 2>/dev/null
       ;;
     d)
       T2_DEBUG_MODE="yes"
       ;;
     m)
-      export fix_line=( $(fix_placement "${OPTARG}") )
+      fix_placement "${OPTARG}"
       ;;
     h)
       usage
@@ -81,40 +106,47 @@ done
 
 shift $((OPTIND - 1))
 
+# Config parsing #######################################################
+
 if [[ -z "${T2_CONFIG_FILE+x}" ]]; then
-  T2_CONFIG_FILE="${T2_CONFIG_DIR}/layout"
-  . $T2_CONFIG_FILE
+  T2_CONFIG_FILE="${T2_TMP_DIR}/layouts/${DESKTOP_SESSION}"
+  . $T2_CONFIG_FILE 2>/dev/null
 fi
 
-# You guessed it.
+# Set tileable screen space dimensions based on config.
 screen_width=$(( $mon_width - $left_panel_width - $right_panel_width - \
 $left_margin - $right_margin ))
 
 screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
 $top_margin - $bottom_margin ))
 
-# Tiling preferences ##########################################################
+# Tiling preferences ###################################################
 
-# [1-9] Number of horizontal tile slices
-slices=$(printf "%d" "0x${1:0:1}")
+h_slices=${default_slices:-2}
 
-# [1-9] First horizontal slice to occupy
-x0=$(( $(printf "%d" "0x${1:1:1}") - 1 ))
-
-# [1-9] Last horizontal slice to occupy
-# (Note that the script will fail out if $x0 > $x1.
-# $x0 = $x1 is acceptable and gives a single-slice-width
-# window.
-x1=$(( $(printf "%d" "0x${1:2:1}") - 1 ))
+case "${#1}" in
+  4)
+    h_slices=$(printf "%d" "0x${1:0:1}")
+    x0=$(( $(printf "%d" "0x${1:1:1}") - 1 ))
+    x1=$(( $(printf "%d" "0x${1:2:1}") - 1 ))
+    v_slices=${1:3:1}
+    ;;
+  3)
+    x0=$(( $(printf "%d" "0x${1:0:1}") - 1 ))
+    x1=$(( $(printf "%d" "0x${1:1:1}") - 1 ))
+    v_slices=${1:2:1}
+    ;;
+  *)
+    usage
+    exit 4
+    ;;
+esac
 
 # [fhl] Vertical placement
-# h=higher half-screen
-# l=lower half-screen
-# f=fullscreen
-# Note that fullscreen-tiled is _not_ the same thing
-# as fullscreening a window according to your tile
-# manager.
-case "${1:3:1}" in
+# h=higher half-plane
+# l=lower half-plane
+# f=full tile-able region
+case "${v_slices}" in
   h)
     y0=0
     y1=0
@@ -134,28 +166,25 @@ then
   tile_gap="$2"
 fi
 
-# Window Placement ############################################################
+# Window Placement #####################################################
+
+x_fix=${X_FIX:-0}
+y_fix=${Y_FIX:-0}
 
 # Basic (/single-)tile width.
-tile_width=$(( $(( $screen_width / $slices )) - $(( $(( $slices - 1 )) * \
-$tile_gap )) / $slices ))
+tile_width=$(( $(( $screen_width / $h_slices )) - $(( $(( $h_slices - 1 )) * \
+$tile_gap )) / $h_slices ))
 
 # Horizontal placement of the left edge.
-left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) ))
+left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) + $x_fix ))
 window_width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
 
 # Basic (/single-)tile height.
 tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 
 #Vertical placement of the upper edge.
-upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) ))
+upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) + $y_fix ))
 window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
-
-if [[ ${#fix_line[@]} -ne 0 ]]
-then
-  left_edge=$(( left_edge + ${fix_line[1]} ))
-  upper_edge=$(( upper_edge + ${fix_line[2]} ))
-fi
 
 horizontal_placement=$(( $left_edge + $left_panel_width + $left_margin + $horizontal_offset ))
 vertical_placement=$(( $upper_edge + $top_panel_height + $top_margin + $vertical_offset ))
@@ -169,6 +198,6 @@ fi
 xdotool getactivewindow windowsize $window_width $window_height windowmove \
 $horizontal_placement $vertical_placement
 
-unset width height horizontal_placement vertical_placement fix_line
+unset window_width window_height horizontal_placement vertical_placement
 
 exit 0
