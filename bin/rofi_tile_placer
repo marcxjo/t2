@@ -4,12 +4,14 @@ divs=1
 x0=1
 x1=1
 
-limit=9
+limit=16
+
+cache_file="$HOME/.cache/rofi-3.tilecache"
 
 get_sets () {
-      echo "${divs}${x0}${x1}f" >> /tmp/tiles
-      echo "${divs}${x0}${x1}h" >> /tmp/tiles
-      echo "${divs}${x0}${x1}l" >> /tmp/tiles
+      printf "%x%x%xf\n" "${divs}" "${x0}" "${x1}" >> $cache_file
+      printf "%x%x%xh\n" "${divs}" "${x0}" "${x1}" >> $cache_file
+      printf "%x%x%xl\n" "${divs}" "${x0}" "${x1}" >> $cache_file
 }
 
 loop_x0 () {
@@ -30,7 +32,7 @@ loop_x1 () {
 }
 
 loop_divs () {
-  while [[ $divs -lt 10 ]]
+  while [[ $divs -lt $limit ]]
   do
     x1=1
     loop_x1
@@ -43,15 +45,15 @@ function gen_placements () {
 }
 
 function readback () {
-  cat /tmp/tiles | sort | uniq
+  cat $cache_file | sort | uniq
 }
 
-if [ ! -f "/tmp/tiles" ]
+if [ ! -f "$cache_file" ]
 then
   gen_placements
 fi
 
-PLACEMENT=$(readback  | rofi -lines 1 -threads 0 -columns 1 -width 20 location 0 -dmenu -p "Window placement:")
+PLACEMENT=$(readback | rofi -lines 10 -threads 0 -columns 1 -width 40 location 0 -dmenu -p "Window placement")
 
 if [[ -n ${PLACEMENT+x} ]]
 then
