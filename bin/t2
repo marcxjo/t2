@@ -7,8 +7,17 @@
 # Preliminaries ########################################################
 
 T2_CONFIG_DIR="${HOME}/.config/t2"
-T2_TMP_DIR="/tmp/t2-${USER}"
+T2_TMP_DIR="${TMP_DIR:-/tmp/${USER}/t2}"
+T2_DEFAULT_CONFIG_FILE="${T2_TMP_DIR}/layouts/default"
+T2_CURRENT_CONFIG_FILE="${T2_TMP_DIR}/layouts/${DESKTOP_SESSION}"
 T2_DEBUG_MODE="no"
+
+# These windows don't position themselves correctly even with utilities
+# like xdotool, because they don't calculate in their own window frame.
+FRAME_UNAWARE_WINDOWS=("mpv")
+
+# These windows shouldn't ever be moved (e.g., panels and root windows)
+BLACKLISTED_WINDOWS=("x-caja-desktop" "Desktop" "Labortablo" "xfce4-panel")
 
 usage() {
   cat <<-EOF
@@ -42,60 +51,36 @@ usage() {
 EOF
 }
 
-fix_placement() {
-   . "${T2_TMP_DIR}/fixes/${1}"
-}
-
 init() {
   cp -nr ${T2_CONFIG_DIR} ${T2_TMP_DIR}
 }
 
-# Initial checks #######################################################
+get_wm_classes() {
+  xprop -id "${1}" WM_CLASS | sed 's|^.* \= \(.*\)$|\1|' | tr -d '",'
+}
 
-if [[ ! -e ${T2_TMP_DIR} ]]; then
-  init
-fi
-
-. ${T2_TMP_DIR}/layouts/default
-
-ACTIVE_WINDOW=$(xdotool getactivewindow getwindowname)
-
-if [[ $(grep "$ACTIVE_WINDOW" ${T2_TMP_DIR}/blacklist) ]]
-then
-  cat <<-ERR_MSG
-	Sorry, this window is blacklisted from tiling. Most likely this
-	means your active window is actually a root or desktop window.
-	Please select an application window or dialog before attempting
-	to tile.
-	ERR_MSG
-  exit 2
-fi
+get_net_frame_extents() {
+  xprop -id "${1}" _NET_FRAME_EXTENTS | sed 's|^.* \= \(.*\)$|\1|' | tr -d ','
+}
 
 # Options parsing ######################################################
 
-ACTIVE_WINDOW_ID=$(xdotool getactivewindow)
-
-for wm_class in $(find ${T2_TMP_DIR}/fixes -type f); do
-  if [[ $(xprop -id $ACTIVE_WINDOW_ID WM_CLASS | grep -c "$wm_class") -gt 0 ]]; then
-    fix_placement $wm_class
-    break
-  fi
-done
-
-while getopts :ic:dm:h o; do
+while getopts :ic:dmw:h o; do
   case "${o}" in
     i)
       init
       ;;
     c)
-      T2_CONFIG_FILE="${T2_TMP_DIR}/layouts/${OPTARG}"
-      . $T2_CONFIG_FILE 2>/dev/null
+      T2_CURRENT_CONFIG_FILE="${T2_TMP_DIR}/layouts/${OPTARG}"
       ;;
     d)
       T2_DEBUG_MODE="yes"
       ;;
     m)
-      fix_placement "${OPTARG}"
+      FIX_WINDOW="yes"
+      ;;
+    w)
+      CURRENT_WINDOW_ID="${OPTARG}"
       ;;
     h)
       usage
@@ -108,17 +93,46 @@ shift $((OPTIND - 1))
 
 # Config parsing #######################################################
 
-if [[ -z "${T2_CONFIG_FILE+x}" ]]; then
-  T2_CONFIG_FILE="${T2_TMP_DIR}/layouts/${DESKTOP_SESSION}"
-  . $T2_CONFIG_FILE 2>/dev/null
+if [[ ! -e ${T2_TMP_DIR} ]]; then
+  init
 fi
 
-# Set tileable screen space dimensions based on config.
-screen_width=$(( $mon_width - $left_panel_width - $right_panel_width - \
-$left_margin - $right_margin ))
+. $T2_DEFAULT_CONFIG_FILE 2>/dev/null
+. $T2_CURRENT_CONFIG_FILE 2>/dev/null
 
-screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
-$top_margin - $bottom_margin ))
+ACTIVE_WINDOW_ID=$(xdotool getactivewindow)
+WINDOW_ID=${CURRENT_WINDOW_ID:-${ACTIVE_WINDOW_ID}}
+WINDOW_NAME=$(xdotool getwindowname $WINDOW_ID)
+
+if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "${WINDOW_NAME}" ]]
+then
+  cat <<-ERR_MSG
+	Sorry, this window is blacklisted from tiling. Most likely this
+	means your active window is actually a root or desktop window.
+	Please select an application window or dialog before attempting
+	to tile.
+	ERR_MSG
+  exit 2
+fi
+
+if [[ "${FIX_WINDOW}" != "yes" ]]; then
+  WINDOW_CLASSES=( $(get_wm_classes $WINDOW_ID) )
+fi
+
+if [[ ${#WINDOW_CLASSES[@]} -ne 0 ]]; then
+  for wm_class in ${WINDOW_CLASSES[@]}; do
+    if [[ "${FRAME_UNAWARE_WINDOWS[@]}" =~ "${wm_class}" ]]; then
+      FIX_WINDOW="yes"
+      break
+    fi
+  done
+fi
+
+if [[ "${FIX_WINDOW}" == "yes" ]]; then
+  _fixes=( $(get_net_frame_extents "${WINDOW_ID}") )
+  X_FIX=${_fixes[0]}
+  Y_FIX=${_fixes[2]}
+fi
 
 # Tiling preferences ###################################################
 
@@ -138,7 +152,7 @@ case "${#1}" in
     ;;
   *)
     usage
-    exit 4
+    exit 3
     ;;
 esac
 
@@ -168,26 +182,36 @@ fi
 
 # Window Placement #####################################################
 
+# Screen dimensions
+screen_width=$(( $mon_width - $left_panel_width - $right_panel_width - \
+$left_margin - $right_margin ))
+
+screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
+$top_margin - $bottom_margin ))
+
 x_fix=${X_FIX:-0}
 y_fix=${Y_FIX:-0}
 
-# Basic (/single-)tile width.
+# Basic (/single-)tile width
 tile_width=$(( $(( $screen_width / $h_slices )) - $(( $(( $h_slices - 1 )) * \
 $tile_gap )) / $h_slices ))
 
-# Horizontal placement of the left edge.
+# Relative placement of left edge
 left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) + $x_fix ))
 window_width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
 
-# Basic (/single-)tile height.
+# Basic (/single-)tile height
 tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 
-#Vertical placement of the upper edge.
+# Relative placement of upper edge
 upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) + $y_fix ))
 window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
 
+# Modulate edges according to config.
 horizontal_placement=$(( $left_edge + $left_panel_width + $left_margin + $horizontal_offset ))
 vertical_placement=$(( $upper_edge + $top_panel_height + $top_margin + $vertical_offset ))
+
+# Execution ############################################################
 
 if [[ "$T2_DEBUG_MODE" = "yes" ]]
 then
@@ -195,8 +219,9 @@ then
   exit 0
 fi
 
-xdotool getactivewindow windowsize $window_width $window_height windowmove \
-$horizontal_placement $vertical_placement
+xdotool \
+  windowsize ${WINDOW_ID} $window_width $window_height\
+  windowmove ${WINDOW_ID} $horizontal_placement $vertical_placement
 
 unset window_width window_height horizontal_placement vertical_placement
 
