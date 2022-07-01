@@ -56,11 +56,17 @@ init() {
 }
 
 get_wm_classes() {
-  xprop -id "${1}" WM_CLASS | sed 's|^.* \= \(.*\)$|\1|' | tr -d '",'
+  xprop -id "${1}" WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
 }
 
 get_net_frame_extents() {
-  xprop -id "${1}" _NET_FRAME_EXTENTS | sed 's|^.* \= \(.*\)$|\1|' | tr -d ','
+  local _f=$(xprop -id "${1}" _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  echo ${_f:-"0 0 0 0"}
+}
+
+get_gtk_frame_extents() {
+  local _f=$(xprop -id "${1}" _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  echo ${_f:-"0 0 0 0"}
 }
 
 # Options parsing ######################################################
@@ -77,7 +83,7 @@ while getopts :ic:dmw:h o; do
       T2_DEBUG_MODE="yes"
       ;;
     m)
-      FIX_WINDOW="yes"
+      WINDOW_CLASSES=( "mpv" )
       ;;
     w)
       CURRENT_WINDOW_ID="${OPTARG}"
@@ -115,24 +121,44 @@ then
   exit 2
 fi
 
-if [[ "${FIX_WINDOW}" != "yes" ]]; then
-  WINDOW_CLASSES=( $(get_wm_classes $WINDOW_ID) )
-fi
+# Get X11 frame dimensions to subtract them from the geometry calculations
+# and add them from the positioning calculations
+x11_frame_dims=( $(get_net_frame_extents "${WINDOW_ID}") )
 
+x11_frame_l=${x11_frame_dims[0]}
+x11_frame_r=${x11_frame_dims[1]}
+x11_frame_t=${x11_frame_dims[2]}
+x11_frame_b=${x11_frame_dims[3]}
+
+x11_frame_width=$(( $x11_frame_l + $x11_frame_r ))
+x11_frame_height=$(( $x11_frame_t + $x11_frame_b ))
+
+# Get GTK frame dimensions to add them to the geometry calculations
+# and subtract them from the positioning calculations
+gtk_frame_dims=( $(get_gtk_frame_extents "${WINDOW_ID}") )
+
+gtk_frame_l=${gtk_frame_dims[0]}
+gtk_frame_r=${gtk_frame_dims[1]}
+gtk_frame_t=${gtk_frame_dims[2]}
+gtk_frame_b=${gtk_frame_dims[3]}
+
+gtk_frame_width=$(( $gtk_frame_l + $gtk_frame_r ))
+gtk_frame_height=$(( $gtk_frame_t + $gtk_frame_b ))
+
+
+WINDOW_CLASSES+=( $(get_wm_classes $WINDOW_ID) )
 if [[ ${#WINDOW_CLASSES[@]} -ne 0 ]]; then
   for wm_class in ${WINDOW_CLASSES[@]}; do
     if [[ "${FRAME_UNAWARE_WINDOWS[@]}" =~ "${wm_class}" ]]; then
-      FIX_WINDOW="yes"
+      _left_edge_adj=$(( $gtk_frame_l - $x11_frame_l ))
+      _upper_edge_adj=$(( $gtk_frame_t - $x11_frame_t ))
       break
     fi
   done
 fi
 
-if [[ "${FIX_WINDOW}" == "yes" ]]; then
-  _fixes=( $(get_net_frame_extents "${WINDOW_ID}") )
-  X_FIX=${_fixes[0]}
-  Y_FIX=${_fixes[2]}
-fi
+left_edge_adj=${_left_edge_adj:-${gtk_frame_l}}
+upper_edge_adj=${_upper_edge_adj:-${gtk_frame_t}}
 
 # Tiling preferences ###################################################
 
@@ -189,23 +215,22 @@ $left_margin - $right_margin ))
 screen_height=$(( $mon_height - $top_panel_height - $bottom_panel_height - \
 $top_margin - $bottom_margin ))
 
-x_fix=${X_FIX:-0}
-y_fix=${Y_FIX:-0}
-
 # Basic (/single-)tile width
 tile_width=$(( $(( $screen_width / $h_slices )) - $(( $(( $h_slices - 1 )) * \
 $tile_gap )) / $h_slices ))
 
 # Relative placement of left edge
-left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) + $x_fix ))
-window_width=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
+left_edge=$(( $x0 * $(( $tile_width + $tile_gap )) - $left_edge_adj ))
+window_width_pre=$(( $(( $x1 - $x0 )) * $(( $tile_width + $tile_gap )) + $tile_width ))
+window_width=$(( $window_width_pre - $x11_frame_width + $gtk_frame_width ))
 
 # Basic (/single-)tile height
 tile_height=$(( $(( $screen_height / 2 )) - $tile_gap / 2 ))
 
 # Relative placement of upper edge
-upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) + $y_fix ))
-window_height=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
+upper_edge=$(( $y0 * $(( $tile_height + $tile_gap )) - $upper_edge_adj ))
+window_height_pre=$(( $(( $y1 - $y0 )) * $(( $tile_height + $tile_gap )) + $tile_height ))
+window_height=$(( $window_height_pre - $x11_frame_height + $gtk_frame_height  ))
 
 # Modulate edges according to config.
 horizontal_placement=$(( $left_edge + $left_panel_width + $left_margin + $horizontal_offset ))
