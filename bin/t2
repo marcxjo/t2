@@ -142,6 +142,22 @@ gtk_frame_r=${gtk_frame_dims[1]}
 gtk_frame_t=${gtk_frame_dims[2]}
 gtk_frame_b=${gtk_frame_dims[3]}
 
+# In my setup, GTK CSD apps have a 1px outline that empirically falls outside
+# the frame - subtracting the width of this outline corrects their placement
+# in X11
+#
+# Currently not sure if this is theme-/config-dependent, but even Adwaita is
+# impacted
+#
+# TODO - this should be togglable unless/until I can confirm that it's not
+# context-dependent
+if [[ "${gtk_frame_dims[@]}" != "0 0 0 0" ]]; then
+  gtk_frame_l=$(( ${gtk_frame_dims[0]} - 1 ))
+  gtk_frame_r=$(( ${gtk_frame_dims[1]} - 1 ))
+  gtk_frame_t=$(( ${gtk_frame_dims[2]} - 1 ))
+  gtk_frame_b=$(( ${gtk_frame_dims[3]} - 1 ))
+fi
+
 gtk_frame_width=$(( $gtk_frame_l + $gtk_frame_r ))
 gtk_frame_height=$(( $gtk_frame_t + $gtk_frame_b ))
 
