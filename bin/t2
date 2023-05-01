@@ -6,10 +6,10 @@
 
 # Preliminaries ########################################################
 
-T2_CONFIG_DIR="${HOME}/.config/t2"
-T2_TMP_DIR="${TMP_DIR:-/tmp/${USER}/t2}"
-T2_DEFAULT_CONFIG_FILE="${T2_TMP_DIR}/layouts/default"
-T2_CURRENT_CONFIG_FILE="${T2_TMP_DIR}/layouts/${DESKTOP_SESSION}"
+T2_CONFIG_DIR="$HOME/.config/t2"
+T2_TMP_DIR="${T2_TMP_DIR:-${XDG_RUNTIME_DIR}/t2}"
+T2_DEFAULT_CONFIG_FILE="$T2_TMP_DIR/layouts/default"
+T2_CONFIG_FILE_NAMESPACE="$T2_TMP_DIR/layouts/${XDG_CURRENT_DESKTOP,,}"
 T2_DEBUG_MODE="no"
 
 # These windows don't position themselves correctly even with utilities
