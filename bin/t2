@@ -87,13 +87,16 @@ while getopts :ic:dms:w:rh o; do
       initialize_config
       ;;
     c)
-      T2_CURRENT_CONFIG_FILE="${T2_TMP_DIR}/layouts/${OPTARG}"
+      T2_CONFIG_FILE_NAMESPACE="$T2_TMP_DIR/layouts/$OPTARG"
       ;;
     d)
       T2_DEBUG_MODE="yes"
       ;;
     m)
       WINDOW_CLASSES=( "mpv" )
+      ;;
+    s)
+      T2_MONITOR="$OPTARG"
       ;;
     w)
       CURRENT_WINDOW_ID="$OPTARG"
@@ -120,6 +123,9 @@ try_source $T2_DEFAULT_CONFIG_FILE
 
 WINDOW_ID=${CURRENT_WINDOW_ID:-$(xdotool getactivewindow)}
 WINDOW_NAME=$(xdotool getwindowname $WINDOW_ID)
+T2_MONITOR=${T2_MONITOR:-$(mon-name ${WINDOW_ID})}
+
+try_source $T2_CONFIG_FILE_NAMESPACE/$T2_MONITOR
 
 if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "${WINDOW_NAME}" ]]
 then
