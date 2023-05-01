@@ -51,8 +51,18 @@ usage() {
 EOF
 }
 
-init() {
-  cp -nr ${T2_CONFIG_DIR} ${T2_TMP_DIR}
+purge_config() {
+  rm -rf $T2_TMP_DIR
+}
+
+initialize_config() {
+  cp -nr $T2_CONFIG_DIR $T2_TMP_DIR
+}
+
+try_source() {
+  local _file="$1"
+
+  [[ -f $_file ]] && . $_file
 }
 
 get_wm_classes() {
@@ -71,10 +81,10 @@ get_gtk_frame_extents() {
 
 # Options parsing ######################################################
 
-while getopts :ic:dmw:h o; do
+while getopts :ic:dms:w:rh o; do
   case "${o}" in
     i)
-      init
+      initialize_config
       ;;
     c)
       T2_CURRENT_CONFIG_FILE="${T2_TMP_DIR}/layouts/${OPTARG}"
@@ -86,7 +96,12 @@ while getopts :ic:dmw:h o; do
       WINDOW_CLASSES=( "mpv" )
       ;;
     w)
-      CURRENT_WINDOW_ID="${OPTARG}"
+      CURRENT_WINDOW_ID="$OPTARG"
+      ;;
+    r)
+      echo "Resetting cached config..."
+      purge_config
+      exit 0
       ;;
     h)
       usage
@@ -99,15 +114,11 @@ shift $((OPTIND - 1))
 
 # Config parsing #######################################################
 
-if [[ ! -e ${T2_TMP_DIR} ]]; then
-  init
-fi
+[[ -e $T2_TMP_DIR ]] || initialize_config
 
-. $T2_DEFAULT_CONFIG_FILE 2>/dev/null
-. $T2_CURRENT_CONFIG_FILE 2>/dev/null
+try_source $T2_DEFAULT_CONFIG_FILE
 
-ACTIVE_WINDOW_ID=$(xdotool getactivewindow)
-WINDOW_ID=${CURRENT_WINDOW_ID:-${ACTIVE_WINDOW_ID}}
+WINDOW_ID=${CURRENT_WINDOW_ID:-$(xdotool getactivewindow)}
 WINDOW_NAME=$(xdotool getwindowname $WINDOW_ID)
 
 if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "${WINDOW_NAME}" ]]
