@@ -66,16 +66,16 @@ try_source() {
 }
 
 get_wm_classes() {
-  xprop -id "${1}" WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
+  xprop -id $1 WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
 }
 
 get_net_frame_extents() {
-  local _f=$(xprop -id "${1}" _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  local _f=$(xprop -id "$1" _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
   echo ${_f:-"0 0 0 0"}
 }
 
 get_gtk_frame_extents() {
-  local _f=$(xprop -id "${1}" _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  local _f=$(xprop -id "$1" _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
   echo ${_f:-"0 0 0 0"}
 }
 
@@ -127,7 +127,7 @@ T2_MONITOR=${T2_MONITOR:-$(mon-name ${WINDOW_ID})}
 
 try_source $T2_CONFIG_FILE_NAMESPACE/$T2_MONITOR
 
-if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "${WINDOW_NAME}" ]]
+if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "$WINDOW_NAME" ]]
 then
   cat <<-ERR_MSG
 	Sorry, this window is blacklisted from tiling. Most likely this
@@ -140,7 +140,7 @@ fi
 
 # Get X11 frame dimensions to subtract them from the geometry calculations
 # and add them from the positioning calculations
-x11_frame_dims=( $(get_net_frame_extents "${WINDOW_ID}") )
+x11_frame_dims=( $(get_net_frame_extents "$WINDOW_ID") )
 
 x11_frame_l=${x11_frame_dims[0]}
 x11_frame_r=${x11_frame_dims[1]}
@@ -152,7 +152,7 @@ x11_frame_height=$(( $x11_frame_t + $x11_frame_b ))
 
 # Get GTK frame dimensions to add them to the geometry calculations
 # and subtract them from the positioning calculations
-gtk_frame_dims=( $(get_gtk_frame_extents "${WINDOW_ID}") )
+gtk_frame_dims=( $(get_gtk_frame_extents "$WINDOW_ID") )
 
 gtk_frame_l=${gtk_frame_dims[0]}
 gtk_frame_r=${gtk_frame_dims[1]}
@@ -182,7 +182,7 @@ gtk_frame_height=$(( $gtk_frame_t + $gtk_frame_b ))
 WINDOW_CLASSES+=( $(get_wm_classes $WINDOW_ID) )
 if [[ ${#WINDOW_CLASSES[@]} -ne 0 ]]; then
   for wm_class in ${WINDOW_CLASSES[@]}; do
-    if [[ "${FRAME_UNAWARE_WINDOWS[@]}" =~ "${wm_class}" ]]; then
+    if [[ "${FRAME_UNAWARE_WINDOWS[@]}" =~ "$wm_class" ]]; then
       _left_edge_adj=$(( $gtk_frame_l - $x11_frame_l ))
       _upper_edge_adj=$(( $gtk_frame_t - $x11_frame_t ))
       break
@@ -278,9 +278,10 @@ then
 fi
 
 xdotool \
-  windowsize ${WINDOW_ID} $window_width $window_height\
-  windowmove ${WINDOW_ID} $horizontal_placement $vertical_placement
+  windowsize $WINDOW_ID $window_width $window_height\
+  windowmove $WINDOW_ID $horizontal_placement $vertical_placement
 
 unset window_width window_height horizontal_placement vertical_placement
 
 exit 0
+
