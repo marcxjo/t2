@@ -273,7 +273,7 @@ vertical_placement=$(( $upper_edge + $top_panel_height + $top_margin + $vertical
 
 if [[ "$T2_DEBUG_MODE" = "yes" ]]
 then
-  echo "$window_width $window_height $horizontal_placement $vertical_placement"
+  echo "${window_width}x${window_height}+${horizontal_placement}+${vertical_placement}"
   exit 0
 fi
 
