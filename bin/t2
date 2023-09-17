@@ -22,13 +22,39 @@ BLACKLISTED_WINDOWS=("x-caja-desktop" "Desktop" "Labortablo" "xfce4-panel")
 usage() {
   cat <<-EOF
 	Usage:
-	  ${0##*/} [-c T2_CONFIG_FILE_SUFFIX] LAYOUT
+	  ${0##*/} [[-c T2_CONFIG_FILE_NAMESPACE] [-d] [-m] [-s MONITOR]
+     [-w WINDOW_ID] LAYOUT] [-r] [-h]
 
 	Options:
 
-	-c T2_CONFIG_FILE_SUFFIX
-	  Use an alternate config file to place the active window
-	  Passing "-c foo" sources \${HOME}/.config/t2/layouts/foo
+	-c T2_CONFIG_FILE_NAMESPACE
+	  Use an alternate config to place the active window
+	  Passing "-c foo" will hint the script to source config files under
+    \${HOME}/.config/t2/layouts/foo
+
+  -d
+    Debug mode; instead of placing a window, the calculated window
+    geometry will be printed in the standard X11 geometry specification
+    format
+
+  -m
+    Hints to the script that the window is frame-unaware on construction;
+    the calculated geometry will not account for X11 or GTK frame extents
+    Examples of frame-unaware applications include mpv
+
+  -s MONITOR
+    Send the window to be moved to the specified monitor, rather than
+    tiling it on its current monitor
+
+  -w WINDOW_ID
+    Tile the specified window rather than the currently focused window
+
+  -r
+    Reset the config; this is useful after making hand edits to your
+    screen config
+
+  -h
+    Print this help message
 
 	LAYOUT
 	  A 4-char argument formatted [TILES][X_0][X_1][Y_SPAN]
