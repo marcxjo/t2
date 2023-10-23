@@ -1,0 +1,121 @@
+#!/bin/bash
+
+get_mon_names() {
+  xrandr --listactivemonitors | tail -n+2 | awk '{gsub(/[+*]/, ""); print $2}'
+}
+
+get_display_profile() {
+  xfconf-query -c displays -p /ActiveProfile
+}
+
+get_mon_width() {
+  local _mon=${1}
+
+  local _active_profile=$(get_display_profile)
+  xfconf-query -c displays -p /${_active_profile}/${_mon}/Resolution | cut -dx -f1
+}
+
+get_mon_height() {
+  local _mon=${1}
+
+  local _active_profile=$(get_display_profile)
+  xfconf-query -c displays -p /${_active_profile}/${_mon}/Resolution | cut -dx -f2
+}
+
+get_mon_x() {
+  local _mon=${1}
+
+  local _active_profile=$(get_display_profile)
+  xfconf-query -c displays -p /${_active_profile}/${_mon}/Position/X
+}
+
+get_mon_y() {
+  local _mon=${1}
+
+  local _active_profile=$(get_display_profile)
+  xfconf-query -c displays -p /${_active_profile}/${_mon}/Position/Y
+}
+
+get_panel_ids() {
+  # Filter out type info message:
+  local _panels=( $(xfconf-query -c xfce4-panel -p /panels | tail -n+3) )
+  echo ${_panels[@]}
+}
+
+get_panel_width() {
+  local _panel=${1}
+  xfconf-query -c xfce4-panel -p /panels/${_panel}/size
+}
+
+get_panel_side() {
+  local _panel=${1}
+  xfconf-query -c xfce4-panel -p /panels/${_panel}/position | tr ';' ' ' | awk '{gsub(/[a-z]=/, ""); print $1}'
+}
+
+# Does not necessarily return the midpoint per se, but rather an
+# arbitrary point that can be used to determine the owning monitor
+# THIS PROBABLY BREAKS WITH MULTI-PANEL MONITORS - I don't have a use
+# case for this scenario and likely never will
+get_panel_midpoint() {
+  local _panel=${1}
+  xfconf-query -c xfce4-panel -p /panels/${_panel}/position | tr ';' ' ' | awk '{gsub(/[a-z]=/, ""); print $2, $3}'
+}
+
+main() {
+  if [[ ${#MONITORS[@]} -eq 0 ]]
+  then
+    MONITORS=( $(get_mon_names) )
+  fi
+
+  DISPLAY_PROFILE=$(get_display_profile)
+
+  for mon in ${MONITORS[@]}
+  do
+    MON_WIDTHS[$mon]=$(get_mon_width $mon)
+    MON_HEIGHTS[$mon]=$(get_mon_height $mon)
+    MON_OFFSETS_X[$mon]=$(get_mon_x $mon)
+    MON_OFFSETS_Y[$mon]=$(get_mon_y $mon)
+
+    # Initialize panel margins since
+    # likely not all sides will have a panel
+    MON_PWIDTHS_LEFT[$mon]=0
+    MON_PWIDTHS_RIGHT[$mon]=0
+    MON_PWIDTHS_TOP[$mon]=0
+    MON_PWIDTHS_BOT[$mon]=0
+  done
+
+  local _panel_ids=( $(get_panel_ids) )
+
+  for id in ${_panel_ids[@]}
+  do
+    panel_name="panel-${id}"
+    panel_side=$(get_panel_side $panel_name)
+
+    panel_midpoint=$(get_panel_midpoint $panel_name)
+    panel_monitor=$(mon-name ${panel_midpoint[@]})
+
+    panel_width=$(get_panel_width $panel_name)
+
+    case $panel_side in
+      0) # Not snapped to a side
+         # Case included here for documentation purposes
+        ;;
+      1|2|3|4) # Snapped to right edge
+        MON_PWIDTHS_RIGHT[$panel_monitor]=$panel_width
+        ;;
+      4|5|6|7) # Snapped to left edge
+        MON_PWIDTHS_LEFT[$panel_monitor]=$panel_width
+        ;;
+      9|11) # Snapped to top edge
+        MON_PWIDTHS_TOP[$panel_monitor]=$panel_width
+        ;;
+      10|12) # Snapped to bottom edge
+        MON_PWIDTHS_BOT[$panel_monitor]=$panel_width
+        ;;
+    esac
+  done
+}
+
+main
+
+unset -f main

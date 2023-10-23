@@ -1,0 +1,13 @@
+#!/bin/sh
+
+try_source() {
+  local _file="$1"
+
+  [[ -f $_file ]] && . $_file
+}
+
+DEFAULT_GEN="$T2_LIB_DIR/layout-config/default"
+CONFIG_GEN="$T2_LIB_DIR/layout-config/${XDG_CURRENT_DESKTOP,,}"
+
+#. ${DEFAULT_GEN}
+try_source ${CONFIG_GEN}

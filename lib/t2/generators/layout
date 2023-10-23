@@ -1,0 +1,26 @@
+#!/bin/bash
+
+cat<<-EOF
+	tile_gap=$tile_gap
+
+	# Monitor stats
+	mon_width=$mon_width
+	mon_height=$mon_height
+
+	# Panel widths
+	# Used to calculate screen margins
+	top_panel_height=$top_panel_height
+	bottom_panel_height=$bottom_panel_height
+	left_panel_width=$left_panel_width
+	right_panel_width=$right_panel_width
+
+	# Monitor offset
+	horizontal_offset=$horizontal_offset
+	vertical_offset=$vertical_offset
+
+	# User-defined screen padding
+	top_margin=$top_margin
+	bottom_margin=$bottom_margin
+	left_margin=$left_margin
+	right_margin=$right_margin
+EOF
