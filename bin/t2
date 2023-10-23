@@ -7,6 +7,8 @@
 # Preliminaries ########################################################
 
 T2_CONFIG_DIR="$HOME/.config/t2"
+T2_LIB_DIR="$HOME/.local/lib/t2"
+
 T2_TMP_DIR="${T2_TMP_DIR:-${XDG_RUNTIME_DIR}/t2}"
 T2_DEFAULT_CONFIG_FILE="$T2_TMP_DIR/layouts/default"
 T2_CONFIG_FILE_NAMESPACE="$T2_TMP_DIR/layouts/${XDG_CURRENT_DESKTOP,,}"
@@ -17,7 +19,7 @@ T2_DEBUG_MODE="no"
 FRAME_UNAWARE_WINDOWS=("mpv")
 
 # These windows shouldn't ever be moved (e.g., panels and root windows)
-BLACKLISTED_WINDOWS=("x-caja-desktop" "Desktop" "Labortablo" "xfce4-panel")
+BLACKLISTED_NET_WM_TYPES=("_NET_WM_WINDOW_TYPE_DESKTOP" "_NET_WM_WINDOW_TYPE_DOCK")
 
 usage() {
   cat <<-EOF
@@ -77,31 +79,49 @@ usage() {
 EOF
 }
 
-purge_config() {
-  rm -rf $T2_TMP_DIR
+purge_script_config() {
+  rm -rf $T2_TMP_DIR/*
 }
 
-initialize_config() {
-  cp -nr $T2_CONFIG_DIR $T2_TMP_DIR
+generate_script_config() {
+  mkdir -p $T2_TMP_DIR
+  t2-script-config-gen.sh -l
+}
+
+generate_user_configs() {
+  mkdir -p $T2_TMP_DIR
+  t2-user-config-gen.sh -l
 }
 
 try_source() {
-  local _file="$1"
+  local _file=${1}
 
   [[ -f $_file ]] && . $_file
 }
 
 get_wm_classes() {
-  xprop -id $1 WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
+  local _wid=${1}
+
+  xprop -id $_wid WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
+}
+
+get_net_wm_window_type() {
+  local _wid=${1}
+
+  xprop -id $_wid _NET_WM_WINDOW_TYPE | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
 }
 
 get_net_frame_extents() {
-  local _f=$(xprop -id "$1" _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  local _wid=${1}
+
+  local _f=$(xprop -id $_wid _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
   echo ${_f:-"0 0 0 0"}
 }
 
 get_gtk_frame_extents() {
-  local _f=$(xprop -id "$1" _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
+  local _wid=${1}
+
+  local _f=$(xprop -id $_wid _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
   echo ${_f:-"0 0 0 0"}
 }
 
@@ -126,7 +146,9 @@ while getopts :ic:dms:w:rh o; do
       ;;
     r)
       echo "Resetting cached config..."
-      purge_config
+      purge_script_config
+      generate_script_config
+      generate_user_configs
       exit 0
       ;;
     h)
@@ -140,17 +162,15 @@ shift $((OPTIND - 1))
 
 # Config parsing #######################################################
 
-[[ -e $T2_TMP_DIR ]] || initialize_config
-
-try_source $T2_DEFAULT_CONFIG_FILE
+[[ -e $T2_TMP_DIR ]] || generate_script_config
 
 WINDOW_ID=${CURRENT_WINDOW_ID:-$(xdotool getactivewindow)}
-WINDOW_NAME=$(xdotool getwindowname $WINDOW_ID)
+WINDOW_TYPE=$(get_net_wm_window_type $WINDOW_ID)
 T2_MONITOR=${T2_MONITOR:-$(mon-name ${WINDOW_ID})}
 
-try_source $T2_CONFIG_FILE_NAMESPACE/$T2_MONITOR
+. $T2_TMP_DIR/$T2_MONITOR
 
-if [[ "${BLACKLISTED_WINDOWS[@]}" =~ "$WINDOW_NAME" ]]
+if [[ "${BLACKLISTED_NET_WM_TYPES[@]}" =~ "$WINDOW_TYPE" ]]
 then
   cat <<-ERR_MSG
 	Sorry, this window is blacklisted from tiling. Most likely this
@@ -312,7 +332,7 @@ then
 fi
 
 xdotool \
-  windowsize $WINDOW_ID $window_width $window_height\
+  windowsize $WINDOW_ID $window_width $window_height \
   windowmove $WINDOW_ID $horizontal_placement $vertical_placement
 
 unset window_width window_height horizontal_placement vertical_placement
