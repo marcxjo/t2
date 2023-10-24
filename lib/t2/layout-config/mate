@@ -1,0 +1,136 @@
+#!/bin/bash
+
+get_mon_names() {
+  xrandr --listactivemonitors | tail -n+2 | awk '{gsub(/[+*]/, ""); print $2}'
+}
+
+# MATE uses $HOME/.config/monitors.xml to determine monitor placement
+# Need to confirm whether there's a common scenario where this can be another
+# filename/dir
+get_mon_width() {
+  local _mon=${1}
+  local _conf=${2}
+
+  xmllint --xpath "string(/monitors/configuration/output[@name=\"${_mon}\"]/width)" ${_conf}
+}
+
+get_mon_height() {
+  local _mon=${1}
+  local _conf=${2}
+
+  xmllint --xpath "string(/monitors/configuration/output[@name=\"${_mon}\"]/height)" ${_conf}
+}
+
+get_mon_x() {
+  local _mon=${1}
+  local _conf=${2}
+
+  xmllint --xpath "string(/monitors/configuration/output[@name=\"${_mon}\"]/x)" ${_conf}
+}
+
+get_mon_y() {
+  local _mon=${1}
+  local _conf=${2}
+
+  xmllint --xpath "string(/monitors/configuration/output[@name=\"${_mon}\"]/y)" ${_conf}
+}
+
+get_mon_from_id() {
+  local _mon_id=${1}
+
+  # NOTE: MATE uses Xinerama for multi-monitor support
+  # Need to verify that Xinerama's id'ing strategy doesn't deviate from xrandr's
+  xrandr --listactivemonitors | sed -e 's/^[[:space:]]*//' | grep "^${_mon_id}:" | awk '{gsub(/[+*]/, ""); print $2}'
+}
+
+# MATE uses "toplevels" to identify panels based on where they live on-screen
+# (and on which monitor)
+get_panel_ids() {
+  dconf list /org/mate/panel/toplevels/ | tr -d '/'
+}
+
+get_panel_width() {
+  local _panel_id=${1}
+  dconf read /org/mate/panel/toplevels/${_panel_id}/size
+}
+
+# Panel orientation is stored as an enum
+# dconf returns it wrapped in single quotes
+get_panel_side() {
+  local _panel_id=${1}
+  dconf read /org/mate/panel/toplevels/${_panel_id}/orientation | tr -d "'"
+}
+
+# MATE stores Xinerama Ids for panel monitors
+get_panel_mon_id() {
+  local _panel_id=${1}
+  local _mon_id=$(dconf read /org/mate/panel/toplevels/${_panel_id}/monitor)
+
+  # If the panel lives on the primary monitor, it's possible that this value has
+  # never been set
+  echo ${_mon_id:-0}
+}
+
+main() {
+  if [[ ${#MONITORS[@]} -eq 0 ]]
+  then
+    MONITORS=( $(get_mon_names) )
+  fi
+
+  local _mon_conf=${MATE_MON_CONF:-"${HOME}/.config/monitors.xml"}
+
+  for mon in ${MONITORS[@]}
+  do
+    MON_WIDTHS[$mon]=$(get_mon_width $mon $_mon_conf)
+    MON_HEIGHTS[$mon]=$(get_mon_height $mon $_mon_conf)
+    MON_OFFSETS_X[$mon]=$(get_mon_x $mon $_mon_conf)
+    MON_OFFSETS_Y[$mon]=$(get_mon_y $mon $_mon_conf)
+
+    # Initialize panel margins since
+    # likely not all sides will have a panel
+    MON_PWIDTHS_LEFT[$mon]=0
+    MON_PWIDTHS_RIGHT[$mon]=0
+    MON_PWIDTHS_TOP[$mon]=0
+    MON_PWIDTHS_BOT[$mon]=0
+  done
+
+  local _panel_ids=( $(get_panel_ids) )
+
+  for panel_id in ${_panel_ids[@]}
+  do
+    panel_side=$(get_panel_side $panel_id)
+
+    panel_mon_id=$(get_panel_mon_id $panel_id)
+
+    panel_monitor=$(get_mon_from_id $panel_mon_id)
+
+    panel_width=$(get_panel_width $panel_id)
+
+    # This is not a perfect solution
+    # MATE allows dragging panels off of the screen edges, and as of v1.26, does
+    # not unset/update orientation when doing so unless/until the user snaps
+    # the panel to a new screen edge
+    # Unsnapped panels generally do not work well in MATE imo, and as such,
+    # this scenario is currently not supported
+    case $panel_side in
+      'right') # Snapped to right edge
+        MON_PWIDTHS_RIGHT[$panel_monitor]=$panel_width
+        ;;
+      'left') # Snapped to left edge
+        MON_PWIDTHS_LEFT[$panel_monitor]=$panel_width
+        ;;
+      'top') # Snapped to top edge
+        MON_PWIDTHS_TOP[$panel_monitor]=$panel_width
+        ;;
+      'bottom') # Snapped to bottom edge
+        MON_PWIDTHS_BOT[$panel_monitor]=$panel_width
+        ;;
+      *) # Not snapped to a side
+        ;;
+    esac
+  done
+}
+
+main
+
+unset -f main
