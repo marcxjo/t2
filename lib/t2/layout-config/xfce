@@ -68,6 +68,7 @@ main() {
 
   for mon in ${MONITORS[@]}
   do
+    # TODO: grab the active profile first, then pass it into these queries
     MON_WIDTHS[$mon]=$(get_mon_width $mon)
     MON_HEIGHTS[$mon]=$(get_mon_height $mon)
     MON_OFFSETS_X[$mon]=$(get_mon_x $mon)

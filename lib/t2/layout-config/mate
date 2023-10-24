@@ -74,6 +74,8 @@ get_panel_mon_id() {
 main() {
   if [[ ${#MONITORS[@]} -eq 0 ]]
   then
+    # TODO: build an associative array from names and ids rather than doing the
+    # lookup for every panel
     MONITORS=( $(get_mon_names) )
   fi
 

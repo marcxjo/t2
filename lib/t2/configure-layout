@@ -6,7 +6,10 @@ try_source() {
   [[ -f $_file ]] && . $_file
 }
 
+# TODO: do we need this? Maybe useful for minimal floating WMs (e.g., openbox)
 DEFAULT_GEN="$T2_LIB_DIR/layout-config/default"
+# TODO: enable specifying config gen via envar
+# Useful for e.g. testing tweaks to existing configs
 CONFIG_GEN="$T2_LIB_DIR/layout-config/${XDG_CURRENT_DESKTOP,,}"
 
 #. ${DEFAULT_GEN}
