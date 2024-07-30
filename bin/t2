@@ -170,7 +170,7 @@ T2_MONITOR=${T2_MONITOR:-$(mon-name ${WINDOW_ID})}
 
 . $T2_TMP_DIR/$T2_MONITOR
 
-if [[ "${BLACKLISTED_NET_WM_TYPES[@]}" =~ "$WINDOW_TYPE" ]]
+if [[ " ${BLACKLISTED_NET_WM_TYPES[@]} " =~ " $WINDOW_TYPE " ]]
 then
   cat <<-ERR_MSG
 	Sorry, this window is blacklisted from tiling. Most likely this
