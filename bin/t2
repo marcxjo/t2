@@ -16,7 +16,7 @@ T2_DEBUG_MODE="no"
 
 # These windows don't position themselves correctly even with utilities
 # like xdotool, because they don't calculate in their own window frame.
-FRAME_UNAWARE_WINDOWS=("mpv")
+FRAME_UNAWARE_WINDOWS=("mpv" "libreoffice")
 
 # These windows shouldn't ever be moved (e.g., panels and root windows)
 BLACKLISTED_NET_WM_TYPES=("_NET_WM_WINDOW_TYPE_DESKTOP" "_NET_WM_WINDOW_TYPE_DOCK")
