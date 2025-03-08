@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # t2 - PLACEMENT DAY
 #
@@ -80,81 +80,88 @@ EOF
 }
 
 purge_script_config() {
-  rm -rf $T2_TMP_DIR/*
+  rm -rf "${T2_TMP_DIR:?}"/*
 }
 
 generate_script_config() {
-  mkdir -p $T2_TMP_DIR
+  mkdir -p "$T2_TMP_DIR"
   t2-script-config-gen.sh -l
 }
 
 generate_user_configs() {
-  mkdir -p $T2_TMP_DIR
+  mkdir -p "$T2_TMP_DIR"
   t2-user-config-gen.sh -l
 }
 
 try_source() {
-  local _file=${1}
+  local _file="$1"
 
-  [[ -f $_file ]] && . $_file
+  [[ -f $_file ]] && . "$_file"
 }
 
 get_wm_classes() {
-  local _wid=${1}
+  local -ir _wid=$1
 
   xprop -id $_wid WM_CLASS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
 }
 
 get_net_wm_window_type() {
-  local _wid=${1}
+  local -ir _wid=$1
 
   xprop -id $_wid _NET_WM_WINDOW_TYPE | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d '",'
 }
 
 get_net_frame_extents() {
-  local _wid=${1}
+  local -ir _wid=${1}
 
   local _f=$(xprop -id $_wid _NET_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
   echo ${_f:-"0 0 0 0"}
 }
 
 get_gtk_frame_extents() {
-  local _wid=${1}
+  local -ir _wid=${1}
+  local -i l r t b
 
-  local _f=$(xprop -id $_wid _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')
-  echo ${_f:-"0 0 0 0"}
+  read -r l r t b <<<"$(xprop -id $_wid _GTK_FRAME_EXTENTS | sed '/not found./d;s|^.* \= \(.*\)$|\1|' | tr -d ',')"
+  echo ${l:-0} ${r:-0} ${t:-0} ${b:-0}
 }
 
 # Options parsing ######################################################
 
 while getopts :ic:dms:w:rh o; do
-  case "${o}" in
-    c)
-      T2_CONFIG_FILE_NAMESPACE="$T2_TMP_DIR/layouts/$OPTARG"
-      ;;
-    d)
-      T2_DEBUG_MODE="yes"
-      ;;
-    m)
-      WINDOW_CLASSES=( "mpv" )
-      ;;
-    s)
-      T2_MONITOR="$OPTARG"
-      ;;
-    w)
-      CURRENT_WINDOW_ID="$OPTARG"
-      ;;
-    r)
-      echo "Resetting cached config..."
-      purge_script_config
-      generate_script_config
-      generate_user_configs
-      exit 0
-      ;;
-    h)
-      usage
-      exit 0
-      ;;
+  case "$o" in
+  c)
+    T2_CONFIG_FILE_NAMESPACE="$T2_TMP_DIR/layouts/$OPTARG"
+    ;;
+  d)
+    T2_DEBUG_MODE="yes"
+    ;;
+  m)
+    WINDOW_CLASSES=("mpv")
+    ;;
+  s)
+    T2_MONITOR="$OPTARG"
+    ;;
+  w)
+    CURRENT_WINDOW_ID="$OPTARG"
+    ;;
+  r)
+    echo "Resetting cached config..."
+    purge_script_config
+    generate_script_config
+    #generate_user_configs
+    exit 0
+    ;;
+  h)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "Error: Unknown option $o"
+    echo
+    usage
+    exit
+    ;;
   esac
 done
 
@@ -164,14 +171,13 @@ shift $((OPTIND - 1))
 
 [[ -e $T2_TMP_DIR ]] || generate_script_config
 
-WINDOW_ID=${CURRENT_WINDOW_ID:-$(xdotool getactivewindow)}
+declare -i WINDOW_ID=${CURRENT_WINDOW_ID:-$(xdotool getactivewindow)}
 WINDOW_TYPE=$(get_net_wm_window_type $WINDOW_ID)
-T2_MONITOR=${T2_MONITOR:-$(mon-name ${WINDOW_ID})}
+T2_MONITOR=${T2_MONITOR:-$(mon-name $WINDOW_ID)}
 
-. $T2_TMP_DIR/$T2_MONITOR
+. "$T2_TMP_DIR/$T2_MONITOR"
 
-if [[ " ${BLACKLISTED_NET_WM_TYPES[@]} " =~ " $WINDOW_TYPE " ]]
-then
+if [[ " ${BLACKLISTED_NET_WM_TYPES[*]} " =~ " $WINDOW_TYPE " ]]; then
   cat <<-ERR_MSG
 	Sorry, this window is blacklisted from tiling. Most likely this
 	means your active window is actually a root or desktop window.
@@ -183,27 +189,29 @@ fi
 
 # Get X11 frame dimensions to subtract them from the geometry calculations
 # and add them from the positioning calculations
-read x11_frame_l x11_frame_r x11_frame_t x11_frame_b <<< $(get_net_frame_extents "$WINDOW_ID")
+declare -i x11_frame_l x11_frame_t x11_frame_t x11_frame_b
+read -r x11_frame_l x11_frame_r x11_frame_t x11_frame_b <<<"$(get_net_frame_extents "$WINDOW_ID")"
 
-x11_frame_width=$(( $x11_frame_l + $x11_frame_r ))
-x11_frame_height=$(( $x11_frame_t + $x11_frame_b ))
+x11_frame_width=$((x11_frame_l + x11_frame_r))
+x11_frame_height=$((x11_frame_t + x11_frame_b))
 
 # Get GTK frame dimensions to add them to the geometry calculations
 # and subtract them from the positioning calculations
-read gtk_frame_l gtk_frame_r gtk_frame_t gtk_frame_b <<< $(get_gtk_frame_extents "$WINDOW_ID")
+declare -i gtk_frame_l x11_frame_t x11_frame_t x11_frame_b
+read -r gtk_frame_l gtk_frame_r gtk_frame_t gtk_frame_b <<<"$(get_gtk_frame_extents "$WINDOW_ID")"
 
-gtk_frame_width=$(( gtk_frame_l + gtk_frame_r ))
-gtk_frame_height=$(( gtk_frame_t + gtk_frame_b ))
+gtk_frame_width=$((gtk_frame_l + gtk_frame_r))
+gtk_frame_height=$((gtk_frame_t + gtk_frame_b))
 
-width_adj=$(( $x11_frame_width - $gtk_frame_width ))
-height_adj=$(( $x11_frame_height - $gtk_frame_height ))
+width_adj=$((x11_frame_width - gtk_frame_width))
+height_adj=$((x11_frame_height - gtk_frame_height))
 
-WINDOW_CLASSES+=( $(get_wm_classes $WINDOW_ID) )
+readarray WINDOW_CLASSES <<<"$(get_wm_classes $WINDOW_ID)"
 if [[ ${#WINDOW_CLASSES[@]} -ne 0 ]]; then
-  for wm_class in ${WINDOW_CLASSES[@]}; do
-    if [[ "${FRAME_UNAWARE_WINDOWS[@]}" =~ "$wm_class" ]]; then
-      left_edge_adj=$(( $x11_frame_l - $gtk_frame_l ))
-      upper_edge_adj=$(( $x11_frame_t - $gtk_frame_t ))
+  for wm_class in "${WINDOW_CLASSES[@]}"; do
+    if [[ " ${FRAME_UNAWARE_WINDOWS[*]} " =~ " $wm_class " ]]; then
+      left_edge_adj=$((x11_frame_l - gtk_frame_l))
+      upper_edge_adj=$((x11_frame_t - gtk_frame_t))
       break
     fi
   done
@@ -217,31 +225,31 @@ upper_edge_adj=${upper_edge_adj:-${gtk_frame_t}}
 h_slices=${default_slices:-2}
 
 case "${#1}" in
-  4)
-    h_slices=$(printf "%d" "0x${1:0:1}")
-    x0=$(printf "%d" "0x${1:1:1}")
-    x1=$(printf "%d" "0x${1:2:1}")
-    v_slices=2
-    v_hemi=${1:3:1}
-    ;;
-  6)
-    h_slices=$(printf "%d" "0x${1:0:1}")
-    x0=$(printf "%d" "0x${1:1:1}")
-    x1=$(printf "%d" "0x${1:2:1}")
-    v_slices=$(printf "%d" "0x${1:3:1}")
-    y0=$(printf "%d" "0x${1:4:1}")
-    y1=$(printf "%d" "0x${1:5:1}")
-    ;;
-  3)
-    x0=$(printf "%d" "0x${1:0:1}")
-    x1=$(printf "%d" "0x${1:1:1}")
-    v_slices=2
-    v_hemi=${1:3:1}
-    ;;
-  *)
-    usage
-    exit 3
-    ;;
+4)
+  h_slices=$(printf "%d" "0x${1:0:1}")
+  x0=$(printf "%d" "0x${1:1:1}")
+  x1=$(printf "%d" "0x${1:2:1}")
+  v_slices=2
+  v_hemi=${1:3:1}
+  ;;
+6)
+  h_slices=$(printf "%d" "0x${1:0:1}")
+  x0=$(printf "%d" "0x${1:1:1}")
+  x1=$(printf "%d" "0x${1:2:1}")
+  v_slices=$(printf "%d" "0x${1:3:1}")
+  y0=$(printf "%d" "0x${1:4:1}")
+  y1=$(printf "%d" "0x${1:5:1}")
+  ;;
+3)
+  x0=$(printf "%d" "0x${1:0:1}")
+  x1=$(printf "%d" "0x${1:1:1}")
+  v_slices=2
+  v_hemi=${1:3:1}
+  ;;
+*)
+  usage
+  exit 3
+  ;;
 esac
 
 # [fhl] Vertical placement
@@ -249,18 +257,18 @@ esac
 # l=lower half-plane
 # f=full tile-able region
 case "${v_hemi}" in
-  h)
-    y0=1
-    y1=1
-    ;;
-  l)
-    y0=2
-    y1=2
-    ;;
-  f)
-    y0=1
-    y1=2
-    ;;
+h)
+  y0=1
+  y1=1
+  ;;
+l)
+  y0=2
+  y1=2
+  ;;
+f)
+  y0=1
+  y1=2
+  ;;
 esac
 
 # Window Placement #####################################################
@@ -278,15 +286,15 @@ get_window_placement() {
   local -ir v_slices=$6
 
   local screen_width screen_height \
-        tile_width tile_height \
-        left_edge upper_edge \
-        window_width window_height
+    tile_width tile_height \
+    left_edge upper_edge \
+    window_width window_height
 
   local left_padding right_padding \
-        top_padding bottom_padding
+    top_padding bottom_padding
 
   local window_width window_height \
-        horizontal_placement vertical_placement
+    horizontal_placement vertical_placement
 
   left_padding=$((left_panel_width + left_margin))
   right_padding=$((right_panel_width + right_margin))
@@ -303,20 +311,20 @@ get_window_placement() {
   tile_width=$((screen_width / h_slices))
 
   # Relative placement of left edge
-  left_edge=$(($((x0 - 1 )) * tile_width))
+  left_edge=$(($((x0 - 1)) * tile_width))
   left_edge=$((left_edge + left_padding))
   left_edge=$((left_edge + left_edge_adj))
 
-  window_width=$(( $((x1 - x0 + 1)) * tile_width))
+  window_width=$(($((x1 - x0 + 1)) * tile_width))
   window_width=$((window_width - width_adj))
 
   if [[ $x0 -ne 1 ]]; then
-    left_edge=$((left_edge + $(( tile_gap / 2 )) ))
-    window_width=$((window_width - $(( tile_gap / 2 )) ))
+    left_edge=$((left_edge + $((tile_gap / 2))))
+    window_width=$((window_width - $((tile_gap / 2))))
   fi
 
   if [[ $x1 -ne $h_slices ]]; then
-    window_width=$((window_width - $(( tile_gap / 2 )) ))
+    window_width=$((window_width - $((tile_gap / 2))))
   fi
 
   # Vertical geometry ##########################################################
@@ -325,20 +333,20 @@ get_window_placement() {
   tile_height=$((screen_height / v_slices))
 
   # Relative placement of upper edge
-  upper_edge=$(($(( y0 - 1 )) * tile_height))
-  upper_edge=$(( upper_edge + top_padding ))
-  upper_edge=$(( upper_edge + upper_edge_adj ))
+  upper_edge=$(($((y0 - 1)) * tile_height))
+  upper_edge=$((upper_edge + top_padding))
+  upper_edge=$((upper_edge + upper_edge_adj))
 
-  window_height=$(( $((y1 - y0 + 1)) * tile_height ))
-  window_height=$(( window_height - height_adj ))
+  window_height=$(($((y1 - y0 + 1)) * tile_height))
+  window_height=$((window_height - height_adj))
 
   if [[ $y0 -ne 1 ]]; then
-    upper_edge=$((upper_edge + $(( tile_gap / 2 )) ))
-    window_height=$((window_height - $(( tile_gap / 2 )) ))
+    upper_edge=$((upper_edge + $((tile_gap / 2))))
+    window_height=$((window_height - $((tile_gap / 2))))
   fi
 
   if [[ $y1 -ne $v_slices ]]; then
-    window_height=$((window_height - $(( tile_gap / 2 )) ))
+    window_height=$((window_height - $((tile_gap / 2))))
   fi
 
   echo $window_width $window_height $left_edge $upper_edge
@@ -346,10 +354,9 @@ get_window_placement() {
 
 # Execution ############################################################
 
-read window_width window_height horizontal_placement vertical_placement <<< $(get_window_placement $x0 $x1 $y0 $y1 $h_slices $v_slices)
+read window_width window_height horizontal_placement vertical_placement <<<"$(get_window_placement $x0 $x1 $y0 $y1 $h_slices $v_slices)"
 
-if [[ "$T2_DEBUG_MODE" = "yes" ]]
-then
+if [[ "$T2_DEBUG_MODE" = "yes" ]]; then
   echo "${window_width}x${window_height}+${horizontal_placement}+${vertical_placement}"
   exit 0
 fi
@@ -361,4 +368,3 @@ xdotool \
 unset window_width window_height horizontal_placement vertical_placement
 
 exit 0
-
