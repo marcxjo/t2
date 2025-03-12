@@ -206,19 +206,19 @@ gtk_frame_height=$((gtk_frame_t + gtk_frame_b))
 width_adj=$((x11_frame_width - gtk_frame_width))
 height_adj=$((x11_frame_height - gtk_frame_height))
 
-WINDOW_CLASSES+=( $(get_wm_classes $WINDOW_ID) )
+left_edge_adj=$((gtk_frame_l * -1))
+upper_edge_adj=$((gtk_frame_t * -1))
+
+WINDOW_CLASSES+=($(get_wm_classes $WINDOW_ID))
 if [[ ${#WINDOW_CLASSES[@]} -ne 0 ]]; then
   for wm_class in "${WINDOW_CLASSES[@]}"; do
     if [[ " ${FRAME_UNAWARE_WINDOWS[*]} " =~ " $wm_class " ]]; then
-      left_edge_adj=$((x11_frame_l - gtk_frame_l))
-      upper_edge_adj=$((x11_frame_t - gtk_frame_t))
+      left_edge_adj=$((left_edge_adj + x11_frame_l))
+      upper_edge_adj=$((upper_edge_adj + x11_frame_t))
       break
     fi
   done
 fi
-
-left_edge_adj=${left_edge_adj:-${gtk_frame_l}}
-upper_edge_adj=${upper_edge_adj:-${gtk_frame_t}}
 
 # Tiling preferences ###################################################
 
@@ -273,10 +273,6 @@ esac
 
 # Window Placement #####################################################
 
-calc() {
-  echo "$@" | bc
-}
-
 get_window_placement() {
   local -ir x0=$1
   local -ir x1=$2
@@ -313,7 +309,7 @@ get_window_placement() {
   # Relative placement of left edge
   left_edge=$(($((x0 - 1)) * tile_width))
   left_edge=$((left_edge + left_padding))
-  left_edge=$((left_edge - left_edge_adj))
+  left_edge=$((left_edge + left_edge_adj))
 
   window_width=$(($((x1 - x0 + 1)) * tile_width))
   window_width=$((window_width - width_adj))
@@ -335,7 +331,7 @@ get_window_placement() {
   # Relative placement of upper edge
   upper_edge=$(($((y0 - 1)) * tile_height))
   upper_edge=$((upper_edge + top_padding))
-  upper_edge=$((upper_edge - upper_edge_adj))
+  upper_edge=$((upper_edge + upper_edge_adj))
 
   window_height=$(($((y1 - y0 + 1)) * tile_height))
   window_height=$((window_height - height_adj))
